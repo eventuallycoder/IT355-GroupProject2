@@ -1,5 +1,4 @@
 package src.main.java.com.bankapp.model;
 
-public class UserStatus {
-    
-}
+public enum UserStatus {ACTIVE, LOCKED}
+
