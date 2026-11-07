@@ -1,27 +1,21 @@
-import java.util.Scanner;
-
+ 
 public class Main {
     public static void main(String[] args) {
         
         DatabaseController.createTables();
 
-        UserInterface.printLoginMessage();
+        //log the user in (by either creating an account or logging into preexisitng account)
+        boolean authSuccess = UserLogin.login();
 
-        Scanner scan = new Scanner(System.in);
-
-        String loginChoice = scan.nextLine();
-
-        switch(loginChoice)
+        if(authSuccess)
+            System.out.println("Welcome!");
+        else
         {
-            case "1":
-                //UserLogin.login("","");
-            break;
-
-            case "2":
-                //UserLogin.signup();
-            break;
+            System.out.println("Authentication could not complete, please try again.");
+            System.exit(0);
         }
 
-        scan.close();
+
+
     }
 }
