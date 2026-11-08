@@ -9,7 +9,6 @@ public class PasswordValidator {
      */
     public static boolean isValid(String password, String username)
     {
-
         //check if the password is any common password
         for(String pass : commonPasswords)
         {

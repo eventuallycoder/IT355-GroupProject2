@@ -29,8 +29,10 @@ public class Main {
         while(!userChoice.equals("4"))
         {
             //amount to deposit or withdrawl
-            long amount = 0;
+            String amount = "";
+
             boolean actionRes = false;
+            long cents;
 
             switch(userChoice)
             {
@@ -40,32 +42,42 @@ public class Main {
 
                 case "2":
                     System.out.print("Enter the amount to deposit (in dollars): ");
-                    amount = scan.nextLong();
-                    scan.nextLine();
-                    actionRes = DatabaseController.deposit(loggedInUsername, amount * 100);
+                    amount = scan.nextLine();
+
+                    cents = DatabaseController.dollarsToCents(amount);
+
+                    if(cents == -1)
+                    {
+                        System.out.println("\nInvalid amount. Enter something like 25 or 25.50\n");
+                        break;
+                    }
+
+                    actionRes = DatabaseController.deposit(loggedInUsername, cents);
                     if(actionRes)
-                        System.out.println("\nDeposited $" + amount + " in account successfully.\n");
+                        System.out.println("\nDeposited $" + DatabaseController.formatCents(cents) + " in account successfully.\n");
                     else
                         System.out.println("\nTransaction could not complete, try again later.\n");
                 break;
 
                 case "3":
                     System.out.print("Enter the amount to withdrawl (in dollars): ");
-                    amount = scan.nextLong();
-                    scan.nextLine();
-                    actionRes = DatabaseController.withdraw(loggedInUsername, amount * 100);
+                    amount = scan.nextLine();
+                     
+                    cents = DatabaseController.dollarsToCents(amount);
+
+
+                    actionRes = DatabaseController.withdraw(loggedInUsername, cents);
 
                     if(actionRes)
-                        System.out.println("\nWithdrawed $" + amount + " from account successfully.\n");
+                        System.out.println("\nWithdrawed $" + DatabaseController.formatCents(cents) + " from account successfully.\n");
                     else
                         System.out.println("\nTransaction could not complete, try again later.\n");
                 break;
 
                 default:
-                    System.out.println("Not an option, try entering \"1\", \"2\", or \"3\"");
+                    System.out.println("\nNot an option, try entering \"1\", \"2\", or \"3\"\n");
                 break;
             }
-
 
             UserInterface.menu();
             userChoice = scan.nextLine();
