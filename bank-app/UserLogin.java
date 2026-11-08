@@ -39,6 +39,15 @@ public class UserLogin {
                 username = scan.nextLine();
                 System.out.print("Enter password: ");
                 password = scan.nextLine();
+
+                //check if the password is of valid length, if not the user signup will fail
+                if(PasswordValidator.isValid(password) == false)
+                {
+                    UserInterface.printPasswordRules();
+                    return "";
+                }
+                
+
                 auth = DatabaseController.signUp(username, password);
                 if(auth == true)
                     return username;
