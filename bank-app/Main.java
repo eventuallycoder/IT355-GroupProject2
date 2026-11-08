@@ -9,7 +9,6 @@ public class Main {
 
         //log the user in (by either creating an account or logging into preexisitng account)
         String loggedInUsername = UserLogin.login(scan);
-        
         if(!loggedInUsername.isBlank())
         {
             System.out.println("\nWelcome!\n");

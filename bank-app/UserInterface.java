@@ -20,6 +20,11 @@ public class UserInterface {
     //tells the user the required password length
     public static void printPasswordRules()
     {
-        System.out.println("Password needs to be at least 12 characters long");
+        System.out.println("\nPassword requirements:");
+        System.out.println("1. Must be at least 12 characters long");
+        System.out.println("2. Contain at least one uppercase character");
+        System.out.println("3. Contain at least one lowercase character");
+        System.out.println("4. Contain at least one digit\n");
+
     }
 }
