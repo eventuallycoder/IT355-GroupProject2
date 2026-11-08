@@ -21,11 +21,12 @@ public class UserInterface {
     public static void printPasswordRules()
     {
         System.out.println("\nPassword requirements:");
-        System.out.println("1. Must be at least 12 characters long");
-        System.out.println("2. Contain at least one uppercase character");
-        System.out.println("3. Contain at least one lowercase character");
-        System.out.println("4. Contain at least one digit");
-        System.out.println("5. Password must not contain your username\n");
-
+        System.out.println("1. Must be at least 12 characters long.");
+        System.out.println("2. Contain at least one uppercase character.");
+        System.out.println("3. Contain at least one lowercase character.");
+        System.out.println("4. Contain at least one digit.");
+        System.out.println("5. Contain at least one special character (like ! or #).");
+        System.out.println("6. Must not be a commonly used password.");
+        System.out.println("7. Not contain your username.\n");
     }
 }
