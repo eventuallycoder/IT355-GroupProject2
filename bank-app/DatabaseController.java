@@ -18,7 +18,7 @@ public class DatabaseController {
 
     private DatabaseController() {}
 
-    private static final String DB_DIR  = "bank-app/Database";
+    private static final String DB_DIR  = "Database";
     private static final String DB_FILE = DB_DIR + "/Database.db";
     private static final String URL     = "jdbc:sqlite:" + DB_FILE;
 

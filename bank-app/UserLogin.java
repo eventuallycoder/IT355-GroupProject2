@@ -4,13 +4,10 @@ import java.util.Scanner;
 
 public class UserLogin {
 
-
-
-    public static boolean login()
+    //this logs in a user or creates a users account
+    public static String login(Scanner scan)
     {
         UserInterface.printLoginMessage();
-
-        Scanner scan = new Scanner(System.in);   
         
         String username, password;
         String loginChoice;
@@ -23,13 +20,18 @@ public class UserLogin {
             loginChoice = scan.nextLine();
         }
 
+        boolean auth = false;
         if(loginChoice.equals("1"))
         {
                 System.out.print("Enter username: ");
                 username = scan.nextLine();
                 System.out.print("Enter password: ");
                 password = scan.nextLine();
-                return DatabaseController.authenticate(username, password);
+                auth = DatabaseController.authenticate(username, password);
+                if(auth == true)
+                    return username;
+                else 
+                    return "";
         }      
         else
         {
@@ -37,11 +39,15 @@ public class UserLogin {
                 username = scan.nextLine();
                 System.out.print("Enter password: ");
                 password = scan.nextLine();
-                return DatabaseController.signUp(username, password);
+                auth = DatabaseController.signUp(username, password);
+                if(auth == true)
+                    return username;
+                else 
+                    return "";
         }
 
         
-        
+         
         
     }
 
