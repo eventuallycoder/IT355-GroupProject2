@@ -9,7 +9,7 @@ public class UserInterface {
     //prints the menu, an list of options the user can choose from
     public static void menu()
     {
-        System.out.println("What would you like to do? (Enter the number for the option");
+        System.out.println("What would you like to do? (Enter the number for the option)");
         System.out.println("1. View account balance");
         System.out.println("2. Deposit money into account");
         System.out.println("3. Withdrawal money from account");

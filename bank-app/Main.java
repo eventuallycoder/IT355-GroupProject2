@@ -29,25 +29,42 @@ public class Main {
 
         while(!userChoice.equals("4"))
         {
+            //amount to deposit or withdrawl
+            long amount = 0;
+            boolean actionRes = false;
+
             switch(userChoice)
             {
                 case "1":
-
+                    System.out.println("\nCurrent account balance: " + DatabaseController.getBalanceFormatted(loggedInUsername) + "\n");
                 break;
 
                 case "2":
-                
+                    System.out.print("Enter the amount to deposit (in dollars): ");
+                    amount = scan.nextLong();
+                    scan.nextLine();
+                    actionRes = DatabaseController.deposit(loggedInUsername, amount * 100);
+                    if(actionRes)
+                        System.out.println("\nDeposited $" + amount + " in account successfully.\n");
+                    else
+                        System.out.println("\nTransaction could not complete, try again later.\n");
                 break;
 
                 case "3":
-                
+                    System.out.print("Enter the amount to withdrawl (in dollars): ");
+                    amount = scan.nextLong();
+                    scan.nextLine();
+                    actionRes = DatabaseController.withdraw(loggedInUsername, amount * 100);
+
+                    if(actionRes)
+                        System.out.println("\nWithdrawed $" + amount + " from account successfully.\n");
+                    else
+                        System.out.println("\nTransaction could not complete, try again later.\n");
                 break;
 
                 default:
                     System.out.println("Not an option, try entering \"1\", \"2\", or \"3\"");
                 break;
-
-
             }
 
 

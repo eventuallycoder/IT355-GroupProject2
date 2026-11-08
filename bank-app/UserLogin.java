@@ -16,7 +16,7 @@ public class UserLogin {
 
         while(!(loginChoice.equals("0") || loginChoice.equals("1")))
         {
-            System.out.print("Enter 0 or 1: ");
+            System.out.print("\nEnter 0 or 1: ");
             loginChoice = scan.nextLine();
         }
 

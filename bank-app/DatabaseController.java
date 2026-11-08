@@ -22,6 +22,9 @@ public class DatabaseController {
     private static final String DB_FILE = DB_DIR + "/Database.db";
     private static final String URL     = "jdbc:sqlite:" + DB_FILE;
 
+    // Upper bound so a balance can never overflow SQLite's 64-bit integer
+    private static final long MAX_BALANCE_CENTS = Long.MAX_VALUE / 2;
+
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // ------------------------------------------------------------------
@@ -245,6 +248,87 @@ public class DatabaseController {
             return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded();
         } catch (Exception e) {
             throw new IllegalStateException("Password hashing failed", e);
+        }
+    }
+    
+    /**
+     * Adds money to a user's account.
+     *
+     * @param amountCents must be > 0
+     * @return true if the deposit succeeded, false if the amount is invalid,
+     *         the user doesn't exist, or the balance would exceed the max.
+     */
+    public static boolean deposit(String username, long amountCents) {
+        if (amountCents <= 0 || amountCents > MAX_BALANCE_CENTS) return false;
+
+        String sql = """
+                UPDATE accounts
+                SET balance_cents = balance_cents + ?
+                WHERE user_id = (SELECT id FROM users WHERE username = ?)
+                  AND balance_cents <= ? - ?""";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, amountCents);
+            ps.setString(2, username);
+            ps.setLong(3, MAX_BALANCE_CENTS);
+            ps.setLong(4, amountCents);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Removes money from a user's account.
+     *
+     * @param amountCents must be > 0
+     * @return true if the withdrawal succeeded, false if the amount is invalid,
+     *         the user doesn't exist, or there are insufficient funds.
+     */
+    public static boolean withdraw(String username, long amountCents) {
+        if (amountCents <= 0) return false;
+
+        // The balance check lives inside the UPDATE, so the read and write
+        // happen atomically. No race condition between "check" and "subtract".
+        String sql = """
+                UPDATE accounts
+                SET balance_cents = balance_cents - ?
+                WHERE user_id = (SELECT id FROM users WHERE username = ?)
+                  AND balance_cents >= ?""";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, amountCents);
+            ps.setString(2, username);
+            ps.setLong(3, amountCents);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Dollar-string -> cents helper (for turning user input into amountCents)
+    // ------------------------------------------------------------------
+
+    /**
+     * Converts input like "25", "25.5", "$1,234.56" into cents.
+     *
+     * @return the amount in cents, or -1 if the input isn't a valid positive
+     *         dollar amount (letters, negatives, or fractions of a cent).
+     */
+    public static long dollarsToCents(String input) {
+        if (input == null) return -1;
+        try {
+            BigDecimal dollars = new BigDecimal(input.replace("$", "").replace(",", "").trim());
+            if (dollars.signum() <= 0) return -1;
+            // UNNECESSARY throws if there's more precision than whole cents (e.g. 1.005)
+            return dollars.setScale(2, java.math.RoundingMode.UNNECESSARY)
+                          .movePointRight(2)
+                          .longValueExact();
+        } catch (ArithmeticException | NumberFormatException e) {
+            return -1;
         }
     }
 }
