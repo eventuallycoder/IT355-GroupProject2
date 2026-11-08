@@ -24,7 +24,8 @@ public class UserInterface {
         System.out.println("1. Must be at least 12 characters long");
         System.out.println("2. Contain at least one uppercase character");
         System.out.println("3. Contain at least one lowercase character");
-        System.out.println("4. Contain at least one digit\n");
+        System.out.println("4. Contain at least one digit");
+        System.out.println("5. Password must not contain your username\n");
 
     }
 }

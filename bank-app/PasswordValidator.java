@@ -2,11 +2,18 @@ public class PasswordValidator {
     
     /**
      * 
-     * @param password must be >= 12
-     * @return trye if password is at appropriate length, false if it is less than 12
+     * @param password must be >= 12, contain at least one uppercase character, lowercase character, and digit
+     * @param username must not be contained within password
+     * @return trye if password is at appropriate length with appropriate characters, false if it is less than 12 with without adding appropriate characters
      */
-    public static boolean isValid(String password)
+    public static boolean isValid(String password, String username)
     {
+
+        //check if the username is inside the password
+        if(password.toLowerCase().contains(username.toLowerCase()))
+            return false;
+        
+        //validate the password is appropriate length, containing the appropriate characters and digits
         if(password.length() >= 12)
         {
             boolean hasUpper = false, hasLower = false, hasDigit = false;

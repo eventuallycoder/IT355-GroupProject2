@@ -41,7 +41,7 @@ public class UserLogin {
                 password = scan.nextLine();
 
                 //check if the password is of valid length, if not the user signup will fail
-                if(PasswordValidator.isValid(password) == false)
+                if(PasswordValidator.isValid(password, username) == false)
                 {
                     UserInterface.printPasswordRules();
                     return "";
