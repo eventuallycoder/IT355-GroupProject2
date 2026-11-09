@@ -244,7 +244,7 @@ public class DatabaseController {
 
     private static byte[] pbkdf2(String password, byte[] salt) {
         try {
-            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_BITS);
+            PBEKeySpec spec = new PBEKeySpec((password + getPepper()).toCharArray(), salt, ITERATIONS, KEY_BITS);
             return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded();
         } catch (Exception e) {
             throw new IllegalStateException("Password hashing failed", e);
@@ -329,6 +329,28 @@ public class DatabaseController {
                           .longValueExact();
         } catch (ArithmeticException | NumberFormatException e) {
             return -1;
+        }
+    }
+
+    /**
+     * 
+     * @return the environment variable named as BANK_PEPPER
+     */
+    private static String getPepper() //part of CWE-798
+    {
+        return System.getenv("BANK_PEPPER");
+    }
+
+
+    //calls getPepper()
+    public static void requirePepper() //part of CWE-798
+    {
+        String res = getPepper();
+
+        if(res == null || res.isBlank())
+        {
+            System.out.println("BANK_PEPPER is not set. See setup notes");
+            System.exit(1);
         }
     }
 }
