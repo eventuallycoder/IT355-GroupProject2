@@ -80,7 +80,17 @@ public class Main {
                         break;
                     }
 
-                    actionRes = DatabaseController.withdraw(loggedInUsername, cents);
+                    System.out.print("Reenter password to confirm withdraw: ");
+                    boolean isAuth = DatabaseController.authenticate(loggedInUsername, scan.nextLine()); //user must reenter password before withdrawing money, this covers CWE-306
+
+                    if(isAuth == false) //incorrect password given for reauthentication
+                    {
+                        AuditLogger.log("REAUTH_FAILURE", loggedInUsername);
+                        System.out.println("Incorrect password. Withdrawal cancelled.\n");
+                        break;
+                    }
+
+                    actionRes = DatabaseController.withdraw(loggedInUsername, cents); //withdraw money from the account
 
                     if(actionRes)
                     {
