@@ -13,7 +13,7 @@ public class UserLogin {
         String loginChoice;
 
         loginChoice = scan.nextLine();
-
+ 
         while(!(loginChoice.equals("0") || loginChoice.equals("1")))
         {
             System.out.print("\nEnter 0 or 1: ");
