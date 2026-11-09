@@ -24,7 +24,7 @@ public class Main {
 
         if(!loggedInUsername.isBlank()) //successfully logged in/created account
         {
-            System.out.println("\nWelcome!\n");
+            System.out.println("Welcome!\n");
         }
          else //tried logging in too many times
         {
@@ -107,6 +107,16 @@ public class Main {
                         break;
                     }
 
+                    System.out.print("Withdraw " + DatabaseController.formatCents(cents) + " (y/n): "); //confirm the user wants to withdraw money, start of CWE-841 (the rest below: reauth and then finally withdraw)
+
+                    if(!scan.nextLine().equalsIgnoreCase("y")) 
+                    {
+                        AuditLogger.log("WITHDRAWAL_CANCELLED", loggedInUsername);
+                        System.out.println("\nWithdrawal cancelled\n");
+                        break;
+                    }
+
+
                     boolean isAuth = DatabaseController.authenticate(loggedInUsername, UserInterface.readPassword(scan, "Reenter password to confirm withdraw: ")); //user must reenter password before withdrawing money, this covers CWE-306
 
                     if(isAuth == false) //incorrect password given for reauthentication
@@ -120,7 +130,7 @@ public class Main {
 
                     if(actionRes)
                     {
-                        System.out.println("\nWithdrawed " + DatabaseController.formatCents(cents) + " from account successfully.\n");
+                        System.out.println("Withdrawed " + DatabaseController.formatCents(cents) + " from account successfully.\n");
                         AuditLogger.log("WITHDRAWAL_SUCCESS", loggedInUsername); //log successful withdrawal
                     }
                     else
