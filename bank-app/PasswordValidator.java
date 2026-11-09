@@ -41,7 +41,6 @@ public class PasswordValidator {
             if(hasUpper && hasLower && hasDigit && hasSpecial)
                 return true;
         }
-
         return false;
     }
 }

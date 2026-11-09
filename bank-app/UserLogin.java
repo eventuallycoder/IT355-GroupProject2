@@ -29,9 +29,16 @@ public class UserLogin {
                 password = scan.nextLine();
                 auth = DatabaseController.authenticate(username, password);
                 if(auth == true)
+                {
+                    AuditLogger.log("LOGIN_SUCCESS", username);
                     return username;
+                }
                 else 
+                {
+                    AuditLogger.log("LOGIN_FAILURE", "-");
                     return "";
+                }
+                    
         }      
         else
         {
@@ -44,15 +51,22 @@ public class UserLogin {
                 if(PasswordValidator.isValid(password, username) == false)
                 {
                     UserInterface.printPasswordRules();
+                    AuditLogger.log("SIGNUP_FAILURE", "-");
                     return "";
                 }
                 
 
                 auth = DatabaseController.signUp(username, password);
                 if(auth == true)
+                {
+                    AuditLogger.log("SIGNUP_SUCCESS", username);
                     return username;
+                }
                 else 
+                {
+                    AuditLogger.log("SIGNUP_FAILURE", "-");
                     return "";
+                }
         }
 
         
