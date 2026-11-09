@@ -1,3 +1,6 @@
+import java.io.Console;
+import java.util.Scanner;
+
 public class UserInterface {
 
     //prints the welcome message for a user when they initially start up the app
@@ -28,5 +31,22 @@ public class UserInterface {
         System.out.println("5. Contain at least one special character (like ! or #).");
         System.out.println("6. Must not be a commonly used password.");
         System.out.println("7. Not contain your username.\n");
+    }
+
+    public static String readPassword(Scanner scan, String prompt) //securely reads the password
+    {
+        Console console = System.console();
+
+        if(console != null)
+        {
+           char[] charPass = console.readPassword(prompt);
+
+           return new String(charPass);
+        }
+        else
+        {
+            System.out.print(prompt);
+            return scan.nextLine();
+        }
     }
 }

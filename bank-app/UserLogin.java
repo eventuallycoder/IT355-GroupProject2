@@ -25,8 +25,8 @@ public class UserLogin {
         {
                 System.out.print("Enter username: ");
                 username = scan.nextLine();
-                System.out.print("Enter password: ");
-                password = scan.nextLine();
+                password = UserInterface.readPassword(scan, "Enter password: "); //securely read password
+                  
                 auth = DatabaseController.authenticate(username, password);
                 if(auth == true)
                 {
@@ -44,8 +44,7 @@ public class UserLogin {
         {
                 System.out.print("Enter username: ");
                 username = scan.nextLine();
-                System.out.print("Enter password: ");
-                password = scan.nextLine();
+                password = UserInterface.readPassword(scan, "Enter password: "); //securely read password
 
                 //check if the password is of valid length, if not the user signup will fail
                 if(PasswordValidator.isValid(password, username) == false)

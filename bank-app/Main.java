@@ -33,15 +33,28 @@ public class Main {
             System.exit(0);
         }
 
+        final long TIMEOUT_MS = /*30 * 1000 */ 5 * 60 * 1000; //30 seconds vs 5 minutes
+        long lastActivity = 0; //holds the time in milliseconds the last time the user entered input
+
         //show the user the menu until they quit
         String userChoice = "";
+
+        lastActivity = System.currentTimeMillis(); //get the current time in milliseconds
 
         UserInterface.menu();
 
         userChoice = scan.nextLine();
-
+        
         while(!userChoice.equals("4"))
         {
+
+            if(System.currentTimeMillis() - lastActivity > TIMEOUT_MS) //user has been inactive for too long, this covers CWE-306 since user will most likely not be away from computer for more than 5 minutes without logging out
+            {
+                AuditLogger.log("SESSION_TIMEOUT", loggedInUsername);
+                System.out.println("You were logged out due to inactivity");
+                break;
+            }
+
             //amount to deposit or withdrawl
             String amount = "";
 
@@ -94,8 +107,7 @@ public class Main {
                         break;
                     }
 
-                    System.out.print("Reenter password to confirm withdraw: ");
-                    boolean isAuth = DatabaseController.authenticate(loggedInUsername, scan.nextLine()); //user must reenter password before withdrawing money, this covers CWE-306
+                    boolean isAuth = DatabaseController.authenticate(loggedInUsername, UserInterface.readPassword(scan, "Reenter password to confirm withdraw: ")); //user must reenter password before withdrawing money, this covers CWE-306
 
                     if(isAuth == false) //incorrect password given for reauthentication
                     {
@@ -123,6 +135,8 @@ public class Main {
                     AuditLogger.log("INVALID_MENU_CHOICE", loggedInUsername); //log a selecion of an invalid menu option
                 break;
             }
+
+            lastActivity = System.currentTimeMillis(); //get the current time in milliseconds
 
             UserInterface.menu();
             userChoice = scan.nextLine();
