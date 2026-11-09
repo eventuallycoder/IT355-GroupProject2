@@ -8,14 +8,28 @@ public class Main {
         DatabaseController.createTables();
 
         //log the user in (by either creating an account or logging into preexisitng account)
-        String loggedInUsername = UserLogin.login(scan);
-        if(!loggedInUsername.isBlank())
+        String loggedInUsername = "";
+        int attempts = 0; //keeps track of the number of log in attempts (locks at 3)
+        
+        while(loggedInUsername.equals("") && attempts < 3)
+        {
+            loggedInUsername = UserLogin.login(scan);
+
+            if(loggedInUsername.equals("")) //user failed to login/signup
+            {
+                attempts += 1;
+                System.out.println("\nLogin failed. Attempts remaining: " + (3 - attempts) + "\n");
+            }
+        }
+
+        if(!loggedInUsername.isBlank()) //successfully logged in/created account
         {
             System.out.println("\nWelcome!\n");
         }
-         else
+         else //tried logging in too many times
         {
-            System.out.println("Authentication could not complete, please try again.");
+            System.out.println("Too many failed login attempts, please try again later.");
+            AuditLogger.log("LOGIN_ATTEMPTS_EXCEEDED","-");
             System.exit(0);
         }
 
