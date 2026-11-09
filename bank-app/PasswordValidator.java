@@ -7,7 +7,7 @@ public class PasswordValidator {
      * @param username must not be contained within password
      * @return true if password is at appropriate length with appropriate characters, false if it is less than 12 with without adding appropriate characters
      */
-    public static boolean isValid(String password, String username)
+    public static boolean isValid(String password, String username) //this covers CWE-521
     {
         //check if the password is any common password
         for(String pass : commonPasswords)

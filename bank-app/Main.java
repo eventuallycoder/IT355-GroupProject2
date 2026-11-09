@@ -57,7 +57,7 @@ public class Main {
                     actionRes = DatabaseController.deposit(loggedInUsername, cents);
                     if(actionRes)
                     {
-                        System.out.println("\nDeposited $" + DatabaseController.formatCents(cents) + " in account successfully.\n");
+                        System.out.println("\nDeposited " + DatabaseController.formatCents(cents) + " in account successfully.\n");
                         AuditLogger.log("DEPOSIT_SUCCESS", loggedInUsername); //log deposit success
                     }
                     else
