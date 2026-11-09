@@ -5,7 +5,7 @@ public class PasswordValidator {
     /**
      * @param password must be >= 12, contain at least one uppercase character, lowercase character, and digit
      * @param username must not be contained within password
-     * @return trye if password is at appropriate length with appropriate characters, false if it is less than 12 with without adding appropriate characters
+     * @return true if password is at appropriate length with appropriate characters, false if it is less than 12 with without adding appropriate characters
      */
     public static boolean isValid(String password, String username)
     {

@@ -12,7 +12,7 @@ public class UserInterface {
         System.out.println("What would you like to do? (Enter the number for the option)");
         System.out.println("1. View account balance");
         System.out.println("2. Deposit money into account");
-        System.out.println("3. Withdrawl money from account");
+        System.out.println("3. Withdraw money from account");
         System.out.println("4. Exit application");
         System.out.print("Enter choice: ");
     }
