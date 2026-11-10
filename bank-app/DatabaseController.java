@@ -43,6 +43,8 @@ public class DatabaseController {
     public static void createTables() {
         String users = """
                 CREATE TABLE IF NOT EXISTS users (
+                    failed_attempts INTEGER NOT NULL DEFAULT 0,
+                    locked_until INTEGER,
                     id            INTEGER PRIMARY KEY AUTOINCREMENT,
                     username      TEXT    NOT NULL UNIQUE COLLATE NOCASE,
                     password_hash TEXT    NOT NULL
@@ -353,4 +355,50 @@ public class DatabaseController {
             System.exit(1);
         }
     }
+
+    //adds one to the failed attempts of logging into for a user
+    public static void recordFailedLogin(String username)
+    {
+        String sql = "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE username = ?";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    //resets a users number of failed attempts
+    public static void resetFailedLogins(String username)
+    {
+        String sql = "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE username = ?";
+
+        try(Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql))
+        {
+            ps.setString(1, username);
+            ps.executeUpdate();
+        }
+        catch(SQLException e)
+        {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    //gets the number of failed attempts a user currently has for trying to log in
+    public static int getFailedAttempts(String username)
+    {
+        String sql = "SELECT failed_attempts FROM users WHERE username = ?";
+        
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("failed_attempts") : 0;
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return -1;
+        }
+    }
+
 }

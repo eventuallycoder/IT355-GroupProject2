@@ -9,10 +9,10 @@ public class Main {
         
         DatabaseController.createTables();
 
-        //log the user in (by either creating an account or logging into preexisitng account)
-        String loggedInUsername = "";
         int attempts = 0; //keeps track of the number of log in attempts (locks at 3)
         
+        //log the user in (by either creating an account or logging into preexisitng account)
+        String loggedInUsername = "";
         while(loggedInUsername.equals("") && attempts < 3)
         {
             loggedInUsername = UserLogin.login(scan);
@@ -49,7 +49,6 @@ public class Main {
         
         while(!userChoice.equals("4"))
         {
-
             if(System.currentTimeMillis() - lastActivity > TIMEOUT_MS) //user has been inactive for too long, this covers CWE-306 since user will most likely not be away from computer for more than 5 minutes without logging out
             {
                 AuditLogger.log("SESSION_TIMEOUT", loggedInUsername);
