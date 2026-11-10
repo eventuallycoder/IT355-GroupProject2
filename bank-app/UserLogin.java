@@ -1,5 +1,6 @@
 //This class is responsible for logging a user into their account or creating a user account
 
+import java.security.AuthProvider;
 import java.util.Scanner;
 
 public class UserLogin {
@@ -27,11 +28,17 @@ public class UserLogin {
                 username = scan.nextLine();
                 password = UserInterface.readPassword(scan, "Enter password: "); //securely read password
                   
-                if(DatabaseController.isLocked(username) == true)
+                if(DatabaseController.isLocked(username) == true) //checks if the user is locked, if they are don't let them login
                 {
                     AuditLogger.log("LOGIN_BLOCKED", "-");
                     System.out.println("Invalid username or password, or the account is temporarily locked.");
                     return "";
+                }
+
+                if(DatabaseController.getFailedAttempts(username) >= 3) //account isn't locked now, but still has the old failed attempts amount
+                {
+                    DatabaseController.resetFailedLogins(username);
+                    AuditLogger.log("ACCOUNT_UNLOCKED", username);
                 }
 
                 auth = DatabaseController.authenticate(username, password);
@@ -48,7 +55,7 @@ public class UserLogin {
 
                     if(DatabaseController.getFailedAttempts(username) >= 3) //user is locked out of their account for 15 minutes
                     {
-                        DatabaseController.lockUser(username, 1);
+                        DatabaseController.lockUser(username, 15); //15 minutes til they can use account again
                         AuditLogger.log("ACCOUNT_LOCKED", username);
                         System.out.println("Too many failed attempts, try again later. ");
                     }

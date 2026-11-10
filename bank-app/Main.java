@@ -20,7 +20,7 @@ public class Main {
             if(loggedInUsername.equals("")) //user failed to login/signup
             {
                 attempts += 1;
-                System.out.println("\nLogin failed. Attempts remaining: " + (3 - attempts) + "\n");
+                System.out.println("Login failed. Attempts remaining: " + (3 - attempts) + "\n");
             }
         }
 
