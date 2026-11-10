@@ -27,15 +27,32 @@ public class UserLogin {
                 username = scan.nextLine();
                 password = UserInterface.readPassword(scan, "Enter password: "); //securely read password
                   
+                if(DatabaseController.isLocked(username) == true)
+                {
+                    AuditLogger.log("LOGIN_BLOCKED", "-");
+                    System.out.println("Invalid username or password, or the account is temporarily locked.");
+                    return "";
+                }
+
                 auth = DatabaseController.authenticate(username, password);
                 if(auth == true)
                 {
+                    DatabaseController.resetFailedLogins(username); //Reset the failed login attempts (if there are any)
                     AuditLogger.log("LOGIN_SUCCESS", username);
                     return username;
                 }
                 else 
                 {
                     AuditLogger.log("LOGIN_FAILURE", "-");
+                    DatabaseController.recordFailedLogin(username);
+
+                    if(DatabaseController.getFailedAttempts(username) >= 3) //user is locked out of their account for 15 minutes
+                    {
+                        DatabaseController.lockUser(username, 1);
+                        AuditLogger.log("ACCOUNT_LOCKED", username);
+                        System.out.println("Too many failed attempts, try again later. ");
+                    }
+
                     return "";
                 }
                     
