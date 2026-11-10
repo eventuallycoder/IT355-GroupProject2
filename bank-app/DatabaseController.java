@@ -163,7 +163,14 @@ public class DatabaseController {
      * @return true if a user was deleted, false if no such user existed
      *         or something went wrong.
      */
-    public static boolean deleteUser(String username) {
+    public static boolean deleteUser(String username, String password) {
+
+        if(authenticate(username, password) == false) //tried to delete an account, but credentials were incorrect
+        {
+            AuditLogger.log("DELETE_USER_DENIED", "-");
+            return false;
+        }
+
         try (Connection conn = connect()) {
             conn.setAutoCommit(false);
             try {
@@ -179,7 +186,13 @@ public class DatabaseController {
                     deleted = ps.executeUpdate();
                 }
                 conn.commit();
-                return deleted > 0;
+                boolean removed = deleted > 0;
+
+                if(removed)
+                    AuditLogger.log("USER_DELETED", username);
+
+                return removed;
+
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;

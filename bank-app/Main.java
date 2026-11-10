@@ -7,7 +7,14 @@ public class Main {
 
         DatabaseController.requirePepper();
         
-        DatabaseController.createTables();    
+        DatabaseController.createTables();  
+        
+        System.out.println(DatabaseController.deleteUser("yourtestuser", "wrongpassword"));
+        System.out.println(DatabaseController.getBalanceCents("yourtestuser"));
+        DatabaseController.signUp("throwaway", "Sunshine1234!");
+        System.out.println(DatabaseController.deleteUser("throwaway", "Sunshine1234!"));
+        System.out.println(DatabaseController.getBalanceCents("throwaway"));
+        System.out.println(DatabaseController.deleteUser("nosuchuser", "x"));
 
         int attempts = 0; //keeps track of the number of log in attempts (locks at 3)
         
