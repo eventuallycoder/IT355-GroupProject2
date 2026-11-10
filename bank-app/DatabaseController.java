@@ -401,4 +401,42 @@ public class DatabaseController {
         }
     }
 
+    public static void lockUser(String username, int minutes)
+    {
+        long lockedUntil = System.currentTimeMillis() + (minutes * 60L * 1000L); //current system time plus the lokc length
+
+        String sql = "UPDATE users SET locked_until = ? WHERE username = ?";
+
+        try(Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setLong(1,lockedUntil);
+            ps.setString(2,username);
+            ps.executeUpdate();
+        }
+        catch(SQLException e){
+            System.out.println(e.getMessage());
+        }
+    }
+
+    /**
+     * 
+     * @param username a user's username
+     * @return true if the user's lock hasn't run out yet
+     */
+    public static boolean isLocked(String username)
+    {
+        String sql = "SELECT 1 FROM users WHERE username = ? AND locked_until > ?";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setLong(2,System.currentTimeMillis());
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+        
+    }
 }

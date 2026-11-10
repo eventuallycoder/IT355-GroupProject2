@@ -7,7 +7,7 @@ public class Main {
 
         DatabaseController.requirePepper();
         
-        DatabaseController.createTables();
+        DatabaseController.createTables();    
 
         int attempts = 0; //keeps track of the number of log in attempts (locks at 3)
         
