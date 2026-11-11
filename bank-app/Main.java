@@ -88,7 +88,7 @@ public class Main {
                     if(actionRes)
                     {
                         System.out.println("\nDeposited " + DatabaseController.formatCents(cents) + " in account successfully.\n");
-                        AuditLogger.log("DEPOSIT_SUCCESS", loggedInUsername); //log deposit success
+                        AuditLogger.log("DEPOSIT_SUCCESS", loggedInUsername, DatabaseController.formatCents(cents)); //log deposit success
                     }
                     else
                     {
@@ -114,7 +114,7 @@ public class Main {
 
                     if(!scan.nextLine().equalsIgnoreCase("y")) 
                     {
-                        AuditLogger.log("WITHDRAWAL_CANCELLED", loggedInUsername);
+                        AuditLogger.log("WITHDRAWAL_CANCELLED", loggedInUsername, DatabaseController.formatCents(cents));
                         System.out.println("\nWithdrawal cancelled\n");
                         break;
                     }
@@ -134,7 +134,7 @@ public class Main {
                     if(actionRes)
                     {
                         System.out.println("Withdrawed " + DatabaseController.formatCents(cents) + " from account successfully.\n");
-                        AuditLogger.log("WITHDRAWAL_SUCCESS", loggedInUsername); //log successful withdrawal
+                        AuditLogger.log("WITHDRAWAL_SUCCESS", loggedInUsername, DatabaseController.formatCents(cents)); //log successful withdrawal
                     }
                     else
                     {

@@ -468,7 +468,7 @@ public class DatabaseController {
     /**
      * 
      * @param username should be the currently logged in user 
-     * @return true if the passed user is the currently logged in user, false if not
+     * @return true if the passed user is the currently logged in user, false if not, part of CWE-306 and CWE-841
      */
     private static boolean sessionAllows(String username)
     {
