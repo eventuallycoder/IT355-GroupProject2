@@ -1,6 +1,5 @@
 //This class is responsible for logging a user into their account or creating a user account
 
-import java.security.AuthProvider;
 import java.util.Scanner;
 
 public class UserLogin {
@@ -14,7 +13,7 @@ public class UserLogin {
         String loginChoice;
 
         loginChoice = scan.nextLine();
- 
+
         while(!(loginChoice.equals("0") || loginChoice.equals("1")))
         {
             System.out.print("\nEnter 0 or 1: ");

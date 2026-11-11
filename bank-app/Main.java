@@ -8,13 +8,7 @@ public class Main {
         DatabaseController.requirePepper();
         
         DatabaseController.createTables();  
-        
-        System.out.println(DatabaseController.deleteUser("yourtestuser", "wrongpassword"));
-        System.out.println(DatabaseController.getBalanceCents("yourtestuser"));
-        DatabaseController.signUp("throwaway", "Sunshine1234!");
-        System.out.println(DatabaseController.deleteUser("throwaway", "Sunshine1234!"));
-        System.out.println(DatabaseController.getBalanceCents("throwaway"));
-        System.out.println(DatabaseController.deleteUser("nosuchuser", "x"));
+
 
         int attempts = 0; //keeps track of the number of log in attempts (locks at 3)
         
@@ -34,6 +28,7 @@ public class Main {
         if(!loggedInUsername.isBlank()) //successfully logged in/created account
         {
             System.out.println("Welcome!\n");
+            Session.start(loggedInUsername); //start the session for the logged in user (and no one else)
         }
          else //tried logging in too many times
         {
@@ -161,6 +156,7 @@ public class Main {
         }
 
         AuditLogger.log("LOGOUT", loggedInUsername); //log when the user exits the application
+        Session.end(); //end the session for this user
 
         scan.close();
          

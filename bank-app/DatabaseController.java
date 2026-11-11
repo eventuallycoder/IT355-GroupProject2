@@ -165,7 +165,7 @@ public class DatabaseController {
      */
     public static boolean deleteUser(String username, String password) {
 
-        if(authenticate(username, password) == false) //tried to delete an account, but credentials were incorrect
+        if(authenticate(username, password) == false) //tried to delete an account, but credentials were incorrect, part of CWE-306
         {
             AuditLogger.log("DELETE_USER_DENIED", "-");
             return false;
