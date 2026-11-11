@@ -9,7 +9,7 @@ public class Main {
         
         DatabaseController.createTables();  
 
-
+        
         int attempts = 0; //keeps track of the number of log in attempts (locks at 3)
         
         //log the user in (by either creating an account or logging into preexisitng account)
@@ -30,7 +30,7 @@ public class Main {
             System.out.println("Welcome!\n");
             Session.start(loggedInUsername); //start the session for the logged in user (and no one else)
         }
-         else //tried logging in too many times
+        else //tried logging in too many times
         {
             System.out.println("Too many failed login attempts, please try again later.");
             AuditLogger.log("LOGIN_ATTEMPTS_EXCEEDED","-");

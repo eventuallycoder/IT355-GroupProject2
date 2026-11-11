@@ -1,4 +1,4 @@
-//stores the current user (the one using the application)
+//stores the current user (the one using the application) //This is used for CWE-306 and CWE-841
 public class Session {
     
     private static String currentUser = null; //set to null when nobody is logged in
@@ -42,5 +42,6 @@ public class Session {
         return false;
     }
 
+    
     
 }

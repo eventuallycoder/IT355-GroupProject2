@@ -209,6 +209,10 @@ public class DatabaseController {
 
     /** @return balance in cents, or -1 if the user/account wasn't found. */
     public static long getBalanceCents(String username) {
+        
+        if(!sessionAllows(username)) //if the passed username is not the currently logged in user, don't allow the person to see the real balance
+            return -1;
+        
         String sql = """
                 SELECT a.balance_cents
                 FROM accounts a
@@ -274,6 +278,10 @@ public class DatabaseController {
      *         the user doesn't exist, or the balance would exceed the max.
      */
     public static boolean deposit(String username, long amountCents) {
+        
+        if(!sessionAllows(username)) //the passed username is not the currently logged in user
+            return false;
+        
         if (amountCents <= 0 || amountCents > MAX_BALANCE_CENTS) return false;
 
         String sql = """
@@ -302,6 +310,10 @@ public class DatabaseController {
      *         the user doesn't exist, or there are insufficient funds.
      */
     public static boolean withdraw(String username, long amountCents) {
+        
+        if(!sessionAllows(username)) //passed username is not the currently logged in user
+            return false;
+        
         if (amountCents <= 0) return false;
 
         // The balance check lives inside the UPDATE, so the read and write
@@ -452,4 +464,21 @@ public class DatabaseController {
         }
         
     }
+
+    /**
+     * 
+     * @param username should be the currently logged in user 
+     * @return true if the passed user is the currently logged in user, false if not
+     */
+    private static boolean sessionAllows(String username)
+    {
+        if(Session.isUser(username) == true)
+            return true;
+        else
+        {
+            AuditLogger.log("UNAUTHORIZED_ATTEMPT", "-"); //the username passed is not the currently logged in user
+            return false;
+        }
+    }
+
 }
