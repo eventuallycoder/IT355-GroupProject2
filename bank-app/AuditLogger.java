@@ -16,7 +16,8 @@ public class AuditLogger {
         event = sanitize(event);
         username = sanitize(username);
 
-        if(detail != null)
+        // CWE-229: Treat blank/whitespace-only detail strings the same as null so empty columns are not written
+        if(detail != null && !detail.isBlank())
         {
             detail = sanitize(detail);
 
@@ -49,6 +50,12 @@ public class AuditLogger {
         text = text.replaceAll("\\p{Cntrl}", " "); //replaces any control characters (tabs, carriage, returns, etc)
 
         text = text.replace("|","/"); //makes it so no username can fake the column separator
+
+        // CWE-229: Trim surrounding whitespace after control-character replacement to prevent blank or padded fields
+        text = text.trim();
+        if (text.isEmpty()) {
+            return "-";
+        }
 
         if(text.length() > 30) //cut down the text so its less than 30 characters
         {

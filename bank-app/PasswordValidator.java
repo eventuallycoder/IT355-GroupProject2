@@ -24,14 +24,19 @@ public class PasswordValidator {
      * @param username must not be contained within password
      * @return true if password is at appropriate length with appropriate characters, false if it is less than 12 with without adding appropriate characters
      */
-    public static boolean isValid(String password, String username) //this covers CWE-521
+        public static boolean isValid(String password, String username) //this covers CWE-521
     {
-        if (password == null || username == null) {
+        // CWE-229: Reject null values, blank usernames (which cause .contains("") to always be true), and oversized inputs
+        if (password == null || username == null || username.isBlank() || password.length() > 128) {
             return false;
         }
 
+        // CWE-229: Use Locale.ROOT to prevent locale-dependent case conversion bugs
+        String lowerPass = password.toLowerCase(java.util.Locale.ROOT);
+        String lowerUser = username.trim().toLowerCase(java.util.Locale.ROOT);
+
         // Hash the lowercase input to preserve case-insensitive matching
-        String hashedInput = sha256(password.toLowerCase());
+        String hashedInput = sha256(lowerPass);
 
         // Check if the password is any common password
         for (String passHash : commonPasswordHashes) {
@@ -41,7 +46,7 @@ public class PasswordValidator {
         }
 
         // Check if the username is inside the password
-        if (password.toLowerCase().contains(username.toLowerCase())) {
+        if (lowerPass.contains(lowerUser)) {
             return false;
         }
         
@@ -51,13 +56,17 @@ public class PasswordValidator {
 
             for (int i = 0; i < password.length(); i++) {
                 char c = password.charAt(i);
+                // CWE-229: Reject control characters (like newlines/null bytes) in passwords
+                if (Character.isISOControl(c)) {
+                    return false;
+                }
                 if (Character.isUpperCase(c))
                     hasUpper = true;
                 if (Character.isLowerCase(c))
                     hasLower = true;
                 if (Character.isDigit(c))
                     hasDigit = true;
-                if (!Character.isLetterOrDigit(c))
+                if (!Character.isLetterOrDigit(c) && !Character.isWhitespace(c))
                     hasSpecial = true;
             }
 
@@ -67,8 +76,11 @@ public class PasswordValidator {
         }
         return false;
     }
-
     private static String sha256(String input) {
+        // CWE-229: Guard helper method against null input
+        if (input == null) {
+            throw new IllegalArgumentException("Input cannot be null");
+        }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));

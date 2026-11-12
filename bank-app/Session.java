@@ -12,7 +12,12 @@ public class Session {
     //sets currentUser to the username
     public static void start(String username)
     {
-        currentUser = username;
+        // CWE-229: Reject null or blank usernames so an empty session cannot be marked active
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Cannot start session with null or blank username");
+        }
+        // CWE-229: Normalize surrounding whitespace to match database user records
+        currentUser = username.trim();
     }
 
     /**
@@ -21,7 +26,8 @@ public class Session {
      */
     public static boolean isActive()
     {
-        if(currentUser != null)
+        // CWE-229: Ensure currentUser is neither null nor blank
+        if(currentUser != null && !currentUser.isBlank())
             return true;
 
         return false;
@@ -35,13 +41,15 @@ public class Session {
      */
     public static boolean isUser(String username)
     {
+        // CWE-229: Guard against null or blank username before comparison to prevent NullPointerException
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
         if(isActive())
-            if(username.equalsIgnoreCase(currentUser))
+            if(currentUser.equalsIgnoreCase(username.trim())) // CWE-229: Normalize whitespace on comparison
                 return true;
     
         return false;
     }
-
-    
-    
 }

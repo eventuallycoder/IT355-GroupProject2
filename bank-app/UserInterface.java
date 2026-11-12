@@ -1,4 +1,5 @@
 import java.io.Console;
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class UserInterface {
@@ -35,17 +36,28 @@ public class UserInterface {
 
     public static String readPassword(Scanner scan, String prompt) //securely reads the password
     {
+        // CWE-229: Guard against null prompt values
+        String safePrompt = (prompt == null) ? "" : prompt;
         Console console = System.console();
 
         if(console != null)
         {
-           char[] charPass = console.readPassword(prompt);
-
-           return new String(charPass);
+           char[] charPass = console.readPassword(safePrompt);
+           // CWE-229: Handle null return on EOF (Ctrl+D/Ctrl+Z) instead of throwing NullPointerException in new String()
+           if (charPass == null) {
+               return "";
+           }
+           String password = new String(charPass);
+           Arrays.fill(charPass, '\0');
+           return password;
         }
         else
         {
-            System.out.print(prompt);
+            System.out.print(safePrompt);
+            // CWE-229: Guard against null Scanner or closed input stream (EOF)
+            if (scan == null || !scan.hasNextLine()) {
+                return "";
+            }
             return scan.nextLine();
         }
     }

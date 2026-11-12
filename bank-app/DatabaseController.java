@@ -141,11 +141,15 @@ public class DatabaseController {
     // ------------------------------------------------------------------
     // Login check
     // ------------------------------------------------------------------
-
+    
     public static boolean authenticate(String username, String password) {
+        // CWE-229: Reject null or empty credentials before passing values to SQL or password verification
+        if (username == null || username.isBlank() || password == null || password.isEmpty()) {
+            return false;
+        }
         String sql = "SELECT password_hash FROM users WHERE username = ?";
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
+            ps.setString(1, username.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() && verifyPassword(password, rs.getString("password_hash"));
             }
@@ -154,6 +158,7 @@ public class DatabaseController {
             return false;
         }
     }
+
 
     // ------------------------------------------------------------------
     // Delete user (account first, then user)
@@ -171,25 +176,28 @@ public class DatabaseController {
             return false;
         }
 
+        // CWE-229: Trim whitespace so the normalized value matches database records and audit logs
+        String cleanUser = username.trim();
+
         try (Connection conn = connect()) {
             conn.setAutoCommit(false);
             try {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "DELETE FROM accounts WHERE user_id = (SELECT id FROM users WHERE username = ?)")) {
-                    ps.setString(1, username);
+                    ps.setString(1, cleanUser);
                     ps.executeUpdate();
                 }
                 int deleted;
                 try (PreparedStatement ps = conn.prepareStatement(
                         "DELETE FROM users WHERE username = ?")) {
-                    ps.setString(1, username);
+                    ps.setString(1, cleanUser);
                     deleted = ps.executeUpdate();
                 }
                 conn.commit();
                 boolean removed = deleted > 0;
 
                 if(removed)
-                    AuditLogger.log("USER_DELETED", username);
+                    AuditLogger.log("USER_DELETED", cleanUser);
 
                 return removed;
 
@@ -202,6 +210,7 @@ public class DatabaseController {
             return false;
         }
     }
+
 
     // ------------------------------------------------------------------
     // Balance
@@ -219,7 +228,7 @@ public class DatabaseController {
                 JOIN users u ON u.id = a.user_id
                 WHERE u.username = ?""";
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
+            ps.setString(1, username.trim()); // CWE-229: Normalize whitespace on username lookup
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getLong("balance_cents") : -1;
             }
@@ -236,8 +245,13 @@ public class DatabaseController {
     }
 
     public static String formatCents(long cents) {
+        // CWE-229: Guard against negative values or error sentinels (-1) being formatted as currency
+        if (cents < 0) {
+            throw new IllegalArgumentException("Cents value cannot be negative");
+        }
         return NumberFormat.getCurrencyInstance(Locale.US).format(BigDecimal.valueOf(cents, 2));
     }
+
 
     // ------------------------------------------------------------------
     // Password hashing (PBKDF2, stored as "salt:hash" in Base64)
@@ -254,12 +268,20 @@ public class DatabaseController {
     }
 
     private static boolean verifyPassword(String password, String stored) {
+        // CWE-229: Reject null values before splitting or decoding
+        if (password == null || stored == null) return false;
         String[] parts = stored.split(":");
         if (parts.length != 2) return false;
-        byte[] salt     = Base64.getDecoder().decode(parts[0]);
-        byte[] expected = Base64.getDecoder().decode(parts[1]);
-        return MessageDigest.isEqual(expected, pbkdf2(password, salt));
+        try {
+            byte[] salt     = Base64.getDecoder().decode(parts[0]);
+            byte[] expected = Base64.getDecoder().decode(parts[1]);
+            return MessageDigest.isEqual(expected, pbkdf2(password, salt));
+        } catch (IllegalArgumentException e) {
+            // CWE-229: Handle corrupted/non-Base64 stored hash values safely instead of crashing
+            return false;
+        }
     }
+
 
     private static byte[] pbkdf2(String password, byte[] salt) {
         try {
@@ -347,8 +369,13 @@ public class DatabaseController {
      */
     public static long dollarsToCents(String input) {
         if (input == null) return -1;
+        String cleaned = input.replace("$", "").replace(",", "").trim();
+        // CWE-229: Reject scientific notation (e.g. "1e5") or explicit '+' prefixes before BigDecimal parsing
+        if (!cleaned.matches("^\\d+(\\.\\d{1,2})?$")) {
+            return -1;
+        }
         try {
-            BigDecimal dollars = new BigDecimal(input.replace("$", "").replace(",", "").trim());
+            BigDecimal dollars = new BigDecimal(cleaned);
             if (dollars.signum() <= 0) return -1;
             // UNNECESSARY throws if there's more precision than whole cents (e.g. 1.005)
             return dollars.setScale(2, java.math.RoundingMode.UNNECESSARY)
@@ -358,6 +385,7 @@ public class DatabaseController {
             return -1;
         }
     }
+
 
     /**
      * 
@@ -384,10 +412,13 @@ public class DatabaseController {
     //adds one to the failed attempts of logging into for a user
     public static void recordFailedLogin(String username)
     {
+        // CWE-229: Ignore null or blank usernames before executing SQL update
+        if (username == null || username.isBlank()) return;
+
         String sql = "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE username = ?";
 
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
+            ps.setString(1, username.trim()); // CWE-229: Normalize whitespace
             ps.executeUpdate();
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -397,11 +428,14 @@ public class DatabaseController {
     //resets a users number of failed attempts
     public static void resetFailedLogins(String username)
     {
+        // CWE-229: Ignore null or blank usernames before executing SQL update
+        if (username == null || username.isBlank()) return;
+
         String sql = "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE username = ?";
 
         try(Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql))
         {
-            ps.setString(1, username);
+            ps.setString(1, username.trim()); // CWE-229: Normalize whitespace
             ps.executeUpdate();
         }
         catch(SQLException e)
@@ -413,28 +447,37 @@ public class DatabaseController {
     //gets the number of failed attempts a user currently has for trying to log in
     public static int getFailedAttempts(String username)
     {
+        // CWE-229: Return 0 safely on null or blank usernames
+        if (username == null || username.isBlank()) return 0;
+
         String sql = "SELECT failed_attempts FROM users WHERE username = ?";
         
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
+            ps.setString(1, username.trim()); // CWE-229: Normalize whitespace
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt("failed_attempts") : 0;
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
-            return -1;
+            return 0;
         }
     }
 
-    public static void lockUser(String username, int minutes)
+
+        public static void lockUser(String username, int minutes)
     {
+        // CWE-229: Reject null/blank usernames and non-positive or excessively large lock durations
+        if (username == null || username.isBlank() || minutes <= 0 || minutes > 525_600) {
+            return;
+        }
+
         long lockedUntil = System.currentTimeMillis() + (minutes * 60L * 1000L); //current system time plus the lokc length
 
         String sql = "UPDATE users SET locked_until = ? WHERE username = ?";
 
         try(Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)){
             ps.setLong(1,lockedUntil);
-            ps.setString(2,username);
+            ps.setString(2,username.trim()); // CWE-229: Normalize whitespace to match stored usernames
             ps.executeUpdate();
         }
         catch(SQLException e){
@@ -449,10 +492,15 @@ public class DatabaseController {
      */
     public static boolean isLocked(String username)
     {
+        // CWE-229: Return false safely on null or blank usernames
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
         String sql = "SELECT 1 FROM users WHERE username = ? AND locked_until > ?";
 
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
+            ps.setString(1, username.trim()); // CWE-229: Normalize whitespace to match stored usernames
             ps.setLong(2,System.currentTimeMillis());
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -472,7 +520,13 @@ public class DatabaseController {
      */
     private static boolean sessionAllows(String username)
     {
-        if(Session.isUser(username) == true)
+        // CWE-229: Reject null or blank usernames before checking session state
+        if (username == null || username.isBlank()) {
+            AuditLogger.log("UNAUTHORIZED_ATTEMPT", "-");
+            return false;
+        }
+
+        if(Session.isUser(username.trim()) == true) // CWE-229: Normalize whitespace before session comparison
             return true;
         else
         {
