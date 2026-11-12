@@ -42,6 +42,7 @@ public class AuditLogger {
     //cleans up a string, so it won't clog the audit log, this covers CWE-779
     private static String sanitize(String text)
     {
+        //Covers CWE-233: Guard against null or blank input to prevent NullPointerException and empty log entries
         if(text == null || text.isBlank())
         {
             return "-";
