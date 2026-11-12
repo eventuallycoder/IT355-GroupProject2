@@ -1,5 +1,6 @@
 import java.util.Scanner;
 
+//CWE 89 & CWE 79 are not included as this is a console application and does not have a web interface, so SQL injection and XSS are not applicable.
 public class Main {
 
     public static Scanner scan = new Scanner(System.in);
