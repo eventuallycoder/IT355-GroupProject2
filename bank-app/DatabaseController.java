@@ -65,6 +65,10 @@ public class DatabaseController {
             System.out.println(e.getMessage());
         }
     }
+    //CWE-178: Normalize usernames to lowercase to prevent case-sensitivity mismatches in authentication and account management
+    private static String normalizeUsername(String username) {
+        return username.trim().toLowerCase(Locale.ROOT);
+    }
 
     // ------------------------------------------------------------------
     // Sign up (creates the user AND their bank account atomically)
@@ -79,12 +83,14 @@ public class DatabaseController {
             return false;
         }
 
+        // CWE-178: Store canonical lowercase username to prevent case-sensitivity mismatches
+        String cleanUser = normalizeUsername(username);
         String hash = hashPassword(password);
 
         try (Connection conn = connect()) {
             conn.setAutoCommit(false);
             try {
-                long userId = insertUser(conn, username.trim(), hash);
+                long userId = insertUser(conn, cleanUser, hash);
                 insertAccount(conn, userId);
                 conn.commit();
                 return true;
@@ -168,16 +174,15 @@ public class DatabaseController {
      * @return true if a user was deleted, false if no such user existed
      *         or something went wrong.
      */
-    public static boolean deleteUser(String username, String password) {
-
-        if(authenticate(username, password) == false) //tried to delete an account, but credentials were incorrect, part of CWE-306
+     public static boolean deleteUser(String username, String password) {
+        if(authenticate(username, password) == false)
         {
             AuditLogger.log("DELETE_USER_DENIED", "-");
             return false;
         }
 
-        // CWE-229: Trim whitespace so the normalized value matches database records and audit logs
-        String cleanUser = username.trim();
+        // CWE-178 & CWE-229: Normalize casing and whitespace so database and audit logs stay consistent
+        String cleanUser = normalizeUsername(username);
 
         try (Connection conn = connect()) {
             conn.setAutoCommit(false);
@@ -203,14 +208,14 @@ public class DatabaseController {
 
             } catch (SQLException e) {
                 conn.rollback();
-                throw e;
+                System.out.println(e.getMessage());
+                return false;
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
             return false;
         }
     }
-
 
     // ------------------------------------------------------------------
     // Balance
@@ -300,11 +305,13 @@ public class DatabaseController {
      *         the user doesn't exist, or the balance would exceed the max.
      */
     public static boolean deposit(String username, long amountCents) {
-        
-        if(!sessionAllows(username)) //the passed username is not the currently logged in user
+        if(!sessionAllows(username))
             return false;
         
         if (amountCents <= 0 || amountCents > MAX_BALANCE_CENTS) return false;
+
+        // CWE-178 & CWE-229: Normalize username before binding to SQL
+        String cleanUser = normalizeUsername(username);
 
         String sql = """
                 UPDATE accounts
@@ -314,7 +321,7 @@ public class DatabaseController {
 
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, amountCents);
-            ps.setString(2, username);
+            ps.setString(2, cleanUser);
             ps.setLong(3, MAX_BALANCE_CENTS);
             ps.setLong(4, amountCents);
             return ps.executeUpdate() == 1;
@@ -324,6 +331,7 @@ public class DatabaseController {
         }
     }
 
+
     /**
      * Removes money from a user's account.
      *
@@ -332,14 +340,14 @@ public class DatabaseController {
      *         the user doesn't exist, or there are insufficient funds.
      */
     public static boolean withdraw(String username, long amountCents) {
-        
-        if(!sessionAllows(username)) //passed username is not the currently logged in user
+        if(!sessionAllows(username))
             return false;
         
         if (amountCents <= 0) return false;
 
-        // The balance check lives inside the UPDATE, so the read and write
-        // happen atomically. No race condition between "check" and "subtract".
+        // CWE-178 & CWE-229: Normalize username before binding to SQL
+        String cleanUser = normalizeUsername(username);
+
         String sql = """
                 UPDATE accounts
                 SET balance_cents = balance_cents - ?
@@ -348,7 +356,7 @@ public class DatabaseController {
 
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, amountCents);
-            ps.setString(2, username);
+            ps.setString(2, cleanUser);
             ps.setLong(3, amountCents);
             return ps.executeUpdate() == 1;
         } catch (SQLException e) {
