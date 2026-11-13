@@ -65,4 +65,23 @@ public class AuditLogger {
 
         return text;
     }
+
+    /CWE-276: makes audit.log owner-only; called once from Main at startup (log() itself is unchanged)
+    public static void secureLogFile()
+    {
+        java.nio.file.Path logFile = java.nio.file.Path.of("audit.log");
+        try {
+            java.nio.file.Files.createFile(logFile); //CWE-367: atomic, fails if the file already exists
+        }
+        catch (java.nio.file.FileAlreadyExistsException e) {
+            //already exists: just tighten its permissions below
+        }
+        catch (IOException e) {
+            System.out.println("\nWarning: could not restrict audit log permissions\n");
+            return;
+        }
+
+        if(!DatabaseController.restrictToOwner(logFile))
+            System.out.println("\nWarning: could not restrict audit log permissions\n");
+    }
 }

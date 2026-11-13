@@ -7,6 +7,8 @@ public class Main {
     public static void main(String[] args) {
 
         DatabaseController.requirePepper();
+
+        AuditLogger.secureLogFile(); //CWE-276: make audit.log owner-only before anything is logged
         
         DatabaseController.createTables();  
 
@@ -169,6 +171,35 @@ public class Main {
                         AuditLogger.log("WITHDRAWAL_FAILURE", loggedInUsername); //log failure to withdraw
                     }
                  break;
+                
+                case "5": //save an account statement (CWE-276, 367, 772, 459, 328)
+                {
+                    String statementId = DatabaseController.saveStatement(loggedInUsername);
+                    if(statementId != null)
+                    {
+                        System.out.println("\nStatement saved. Your statement ID is: " + statementId + "\n");
+                        AuditLogger.log("STATEMENT_SAVED", loggedInUsername, "id=" + statementId);
+                    }
+                    else
+                    {
+                        System.out.println("\nStatement could not be created, try again later.\n");
+                        AuditLogger.log("STATEMENT_FAILED", loggedInUsername);
+                    }
+                }
+                break;
+
+                case "6": //view a saved statement (CWE-204, 328, 367, 772)
+                {
+                    System.out.print("Enter the statement ID: ");
+                    if (!scan.hasNextLine()) break;
+                    String statement = DatabaseController.readStatement(loggedInUsername,
+                            scan.nextLine().trim().toUpperCase(java.util.Locale.ROOT));
+                    if(statement != null)
+                        System.out.println("\n" + statement);
+                    else
+                        UserInterface.printStatementNotAvailable(); //CWE-204: same message for every failure
+                }
+                break;
 
                 default:
                     System.out.println("\nNot an option, try entering \"1\", \"2\", or \"3\"\n");
