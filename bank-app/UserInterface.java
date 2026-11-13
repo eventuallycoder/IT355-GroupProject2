@@ -18,6 +18,7 @@ public class UserInterface {
         System.out.println("2. Deposit money into account");
         System.out.println("3. Withdraw money from account");
         System.out.println("4. Exit application");
+        System.out.println("7. Change password");
         System.out.println("5. Save account statement");
         System.out.println("6. View a saved statement");
         System.out.print("Enter choice: ");

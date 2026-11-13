@@ -532,9 +532,46 @@ public class DatabaseController {
     }
 
     /**
+     * Changes a user's password. The user must be the currently logged in user and
+     * must supply their correct current password.
+     *
+     * The caller is responsible for validating the new password's strength
+     * (see PasswordValidator) before calling this.
+     *
+     * @return true if the password was changed, false otherwise
+     */
+    public static boolean changePassword(String username, String oldPassword, String newPassword)
+    {
+        if(!sessionAllows(username)) //only the currently logged in user can change their own password
+            return false;
+
+        if(newPassword == null || newPassword.isEmpty() || oldPassword == null)
+            return false;
+
+        if(!authenticate(username, oldPassword)) //old password must be correct, part of CWE-306
+        {
+            AuditLogger.log("PASSWORD_CHANGE_DENIED", username);
+            return false;
+        }
+
+        String newHash = hashPassword(newPassword); //new random salt each time
+
+        String sql = "UPDATE users SET password_hash = ? WHERE username = ?";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newHash);
+            ps.setString(2, username);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * 
      * @param username should be the currently logged in user 
-     * @return true if the passed user is the currently logged in user, false if not, part of CWE-306 and CWE-841
+     * @return true if the passed user is the currently logged in user, false if not, part of CWE-306, CWE-841, and CWE-639
      */
     private static boolean sessionAllows(String username)
     {
@@ -553,6 +590,7 @@ public class DatabaseController {
         }
     }
 
+}
     // ------------------------------------------------------------------
     // Account statements (menu options 5 and 6)
     // CWE-276, CWE-367, CWE-772, CWE-459, CWE-328, CWE-204
