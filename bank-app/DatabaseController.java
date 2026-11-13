@@ -11,6 +11,16 @@ import java.sql.Statement;
 import java.text.NumberFormat;
 import java.util.Base64;
 import java.util.Locale;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.nio.file.attribute.*;
+import java.util.EnumSet;
+import java.util.List;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
@@ -539,6 +549,140 @@ public class DatabaseController {
         else
         {
             AuditLogger.log("UNAUTHORIZED_ATTEMPT", "-"); //the username passed is not the currently logged in user
+            return false;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Account statements (menu options 5 and 6)
+    // CWE-276, CWE-367, CWE-772, CWE-459, CWE-328, CWE-204
+    // ------------------------------------------------------------------
+
+    private static final Path STATEMENT_DIR = Path.of("statements");
+    private static final String ID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O or 1/I
+    private static final String CHECKSUM_LABEL = "Checksum (HMAC-SHA256): ";
+
+    /**
+     * Saves a statement for the logged-in user.
+     * @return the statement ID, or null if it could not be saved
+     */
+    public static String saveStatement(String username) {
+        String balance = getBalanceFormatted(username); // existing method, runs the session check
+        if (balance == null) return null;
+
+        StringBuilder id = new StringBuilder();
+        for (int i = 0; i < 16; i++) id.append(ID_CHARS.charAt(RANDOM.nextInt(ID_CHARS.length())));
+
+        String body = "BANK APP CO. ACCOUNT STATEMENT\n"
+                    + "Statement ID: " + id + "\n"
+                    + "Owner: " + normalizeUsername(username) + "\n"
+                    + "Generated: " + java.time.LocalDateTime.now().withNano(0) + "\n"
+                    + "Balance: " + balance + "\n";
+        byte[] data = (body + CHECKSUM_LABEL + statementChecksum(body) + "\n").getBytes(StandardCharsets.UTF_8);
+
+        Path file = STATEMENT_DIR.resolve(id + ".txt");
+        boolean created = false;
+        try {
+            Files.createDirectories(STATEMENT_DIR);
+            restrictToOwner(STATEMENT_DIR); // CWE-276: owner-only folder
+
+            // CWE-367: CREATE_NEW checks and creates in ONE atomic step (fails if the file exists).
+            //   Unsafe: if (!Files.exists(file)) Files.write(file, data);  -- gap between check and write
+            // CWE-772: try-with-resources always closes the file, even if write() throws.
+            //   Unsafe: calling out.close() at the end, which is skipped when an exception happens
+            try (OutputStream out = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+                created = true;
+                restrictToOwner(file); // CWE-276: owner-only before any data is written
+                out.write(data);
+            }
+            return id.toString();
+        } catch (IOException e) {
+            // CWE-459: delete a half-written statement instead of leaving it behind
+            if (created) {
+                try { Files.deleteIfExists(file); } catch (IOException ignored) {}
+            }
+            return null;
+        }
+    }
+
+    /**
+     * CWE-204: returns null for EVERY failure (bad ID, missing file, another user's statement,
+     * edited file), so the caller shows one message and nobody can learn which IDs exist.
+     * The real reason is written only to the audit log.
+     * @return the statement text, or null if it can't be shown
+     */
+    public static String readStatement(String username, String id) {
+        String reason;
+        String text = null;
+
+        if (id == null || !id.matches("[" + ID_CHARS + "]{16}")) {
+            reason = "format"; // also blocks paths like ../Database/Database.db
+        } else {
+            // CWE-367: open the file directly (no exists() check first); NOFOLLOW_LINKS refuses a swapped-in link.
+            // CWE-772: try-with-resources always closes it.
+            try (InputStream in = Files.newInputStream(STATEMENT_DIR.resolve(id + ".txt"), LinkOption.NOFOLLOW_LINKS)) {
+                text = new String(in.readNBytes(4096), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                text = null;
+            }
+
+            int split = (text == null) ? -1 : text.lastIndexOf(CHECKSUM_LABEL);
+            if (text == null) {
+                reason = "missing";
+            } else if (split < 0 || !MessageDigest.isEqual(   // CWE-328: recompute and compare in constant time
+                    statementChecksum(text.substring(0, split)).getBytes(StandardCharsets.UTF_8),
+                    text.substring(split + CHECKSUM_LABEL.length()).trim().getBytes(StandardCharsets.UTF_8))) {
+                reason = "checksum";
+            } else if (!text.contains("\nOwner: " + normalizeUsername(username) + "\n") || !sessionAllows(username)) {
+                reason = "owner";
+            } else {
+                AuditLogger.log("STATEMENT_VIEWED", username, "id=" + id);
+                return text;
+            }
+        }
+
+        AuditLogger.log("STATEMENT_DENIED", username, (id == null ? "-" : id) + " " + reason);
+        return null;
+    }
+
+    /**
+     * CWE-328: Use of Weak Hash. HMAC-SHA256 instead of MD5/SHA-1, keyed with the existing pepper
+     * (getPepper, CWE-798), so nobody can forge a checksum for an edited statement.
+     *   Unsafe: MessageDigest.getInstance("MD5")
+     */
+    public static String statementChecksum(String text) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(getPepper().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal(("statement:" + text).getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (Exception e) {
+            throw new IllegalStateException("Statement checksum failed", e);
+        }
+    }
+
+    /**
+     * CWE-276: Incorrect Default Permissions. Makes a file or folder accessible only to its owner
+     * (rw------- / rwx------ on Mac/Linux; an owner-only access list on Windows).
+     *   Unsafe: leaving the default, often rw-r--r--, which every user on the computer can read
+     * @return false if this system refused
+     */
+    public static boolean restrictToOwner(Path path) {
+        try {
+            if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+                Files.setPosixFilePermissions(path,
+                        PosixFilePermissions.fromString(Files.isDirectory(path) ? "rwx------" : "rw-------"));
+            } else {
+                AclFileAttributeView acl = Files.getFileAttributeView(path, AclFileAttributeView.class);
+                if (acl == null) return false;
+                acl.setAcl(List.of(AclEntry.newBuilder()
+                        .setType(AclEntryType.ALLOW)
+                        .setPrincipal(Files.getOwner(path))
+                        .setPermissions(EnumSet.allOf(AclEntryPermission.class))
+                        .build()));
+            }
+            return true;
+        } catch (IOException | RuntimeException e) {
             return false;
         }
     }
