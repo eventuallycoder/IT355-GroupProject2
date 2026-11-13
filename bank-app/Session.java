@@ -6,10 +6,17 @@ public class Session {
     
     private static String currentUser = null; //set to null when nobody is logged in
 
+    //CWE-425: the session itself expires, so a protected call made after the user has gone idle is denied
+    //even if it never passes through the menu loop in Main (every protected DatabaseController method asks Session)
+    private static final long SESSION_TIMEOUT_NANOS = 5L * 60L * 1_000_000_000L; //5 minutes, same as Main
+    private static long lastActivityNanos = 0;
+
+
     //sets the currentUser to null
     public static void end()
     {
         currentUser = null;
+        lastActivityNanos = 0;
     }
 
     //sets currentUser to the normalized canonical username
@@ -21,7 +28,17 @@ public class Session {
         }
         // CWE-178 & CWE-229: Normalize whitespace and casing with Locale.ROOT for consistent session/audit records
         currentUser = username.trim().toLowerCase(Locale.ROOT);
+        lastActivityNanos = System.nanoTime();
     }
+
+    //CWE-425: call whenever the logged in user does something, restarts the idle timer
+    public static void touch()
+    {
+        if (currentUser != null) {
+            lastActivityNanos = System.nanoTime();
+        }
+    }
+
 
     /**
      * 
@@ -30,10 +47,18 @@ public class Session {
     public static boolean isActive()
     {
         // CWE-229: Ensure currentUser is neither null nor blank
-        if(currentUser != null && !currentUser.isBlank())
+        if(currentUser != null && !currentUser.isBlank()){
+            //CWE-425: an expired session is ended and treated as nobody being logged in
+            if(System.nanoTime() - lastActivityNanos > SESSION_TIMEOUT_NANOS)
+            {
+                end();
+                return false;
+            }
+    
             return true;
-
+        }
         return false;
+
     }
 
     /**

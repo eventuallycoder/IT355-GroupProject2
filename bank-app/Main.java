@@ -6,9 +6,13 @@ public class Main {
     public static Scanner scan = new Scanner(System.in);
     public static void main(String[] args) {
 
-        DatabaseController.requirePepper();
-
-        AuditLogger.secureLogFile(); //CWE-276: make audit.log owner-only before anything is logged
+        try{
+            DatabaseController.requirePepper();
+            AuditLogger.secureLogFile();
+        } catch(IllegalStateException e){ //CWE-242
+            System.out.println(e.getMessage());
+            scan.close();
+        }
         
         DatabaseController.createTables();  
 
@@ -42,7 +46,8 @@ public class Main {
         {
             System.out.println("Too many failed login attempts, please try again later.");
             AuditLogger.log("LOGIN_ATTEMPTS_EXCEEDED","-");
-            System.exit(0);
+            scan.close();
+            return; //CWE-242
         }
 
         final long TIMEOUT_MS = /*30 * 1000 */ 5 * 60 * 1000; //30 seconds vs 5 minutes
@@ -52,6 +57,7 @@ public class Main {
         String userChoice = "";
 
         lastActivity = System.currentTimeMillis(); //get the current time in milliseconds
+        Session.touch(); //CWE-425
 
         UserInterface.menu();
 
@@ -74,6 +80,15 @@ public class Main {
                 break;
             }
 
+            //CWE-425
+            if(!Session.isActive() || !Session.isUser(loggedInUsername))
+            {
+                AuditLogger.log("UNAUTHORIZED_ATTEMPT", "-");
+                System.out.println("Your session is no longer valid, please log in again.");
+                break;
+            }
+
+
             //amount to deposit or withdrawl
             String amount = "";
 
@@ -84,9 +99,17 @@ public class Main {
             switch(userChoice)
             {
                 case "1":
-                    System.out.println("\nCurrent account balance: " + DatabaseController.getBalanceFormatted(loggedInUsername) + "\n");
+                    String balance = DatabaseController.getBalanceFormatted(loggedInUsername);
+                    if(balance == null) //CWE-425: the data layer refused (no valid session) or the account wasn't found
+                    {
+                        System.out.println("\nCould not retrieve your balance.\n");
+                        AuditLogger.log("BALANCE_VIEW_FAILURE", loggedInUsername);
+                        break;
+                    }
+                    System.out.println("\nCurrent account balance: " + balance + "\n");
                     AuditLogger.log("BALANCED_VIEWED", loggedInUsername); //log viewed account balance
                 break;
+
 
                 case "2":
                     System.out.print("Enter the amount to deposit (in dollars): ");
@@ -279,6 +302,7 @@ public class Main {
                 break;
 
             lastActivity = System.currentTimeMillis(); //get the current time in milliseconds
+            Session.touch(); //CWE-425
 
             UserInterface.menu();
             // CWE-229: Guard against EOF on subsequent menu iterations
