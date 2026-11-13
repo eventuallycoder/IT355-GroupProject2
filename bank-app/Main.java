@@ -70,7 +70,7 @@ public class Main {
         }
         userChoice = scan.nextLine().trim();
         
-        while(!userChoice.equals("4"))
+        while(!userChoice.equals("7"))
         {
             if(System.currentTimeMillis() - lastActivity > TIMEOUT_MS) //user has been inactive for too long, this covers CWE-306 since user will most likely not be away from computer for more than 5 minutes without logging out
             {
@@ -226,7 +226,7 @@ public class Main {
                 }
                 break;
 
-                case "7": //change password
+                case "4": //change password
                     //ask for the old password first (input is hidden, same as at login) (CWE-620)
                     String oldPassword = UserInterface.readPassword(scan, "Enter your current password: ");
 
