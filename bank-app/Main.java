@@ -14,7 +14,7 @@ public class Main {
         
         //log the user in (by either creating an account or logging into preexisitng account)
         String loggedInUsername = "";
-        while(loggedInUsername.equals("") && attempts < 3)
+        while(loggedInUsername.equals("") && attempts < 3) //Restricts the number of login attempts to prevent a brute force attack to gain unauthorized access (CWE-307)
         {
             loggedInUsername = UserLogin.login(scan);
 
@@ -53,6 +53,7 @@ public class Main {
         {
             if(System.currentTimeMillis() - lastActivity > TIMEOUT_MS) //user has been inactive for too long, this covers CWE-306 since user will most likely not be away from computer for more than 5 minutes without logging out
             {
+                //this also covers CWE-1462, CWE-1463, and CWE-1464 because a user's session running for too long while inactive is a security risk, so it needs a timeout
                 AuditLogger.log("SESSION_TIMEOUT", loggedInUsername);
                 System.out.println("You were logged out due to inactivity");
                 break;
@@ -63,6 +64,7 @@ public class Main {
 
             boolean actionRes = false;
             long cents;
+            boolean forceLogout = false; //set to true when the user gets locked out mid-session
 
             switch(userChoice)
             {
@@ -133,7 +135,7 @@ public class Main {
 
                     if(actionRes)
                     {
-                        System.out.println("Withdrawed " + DatabaseController.formatCents(cents) + " from account successfully.\n");
+                        System.out.println("Withdrew " + DatabaseController.formatCents(cents) + " from account successfully.\n");
                         AuditLogger.log("WITHDRAWAL_SUCCESS", loggedInUsername, DatabaseController.formatCents(cents)); //log successful withdrawal
                     }
                     else
@@ -143,11 +145,80 @@ public class Main {
                     }
                  break;
 
+                case "7": //change password
+                    //ask for the old password first (input is hidden, same as at login) (CWE-620)
+                    String oldPassword = UserInterface.readPassword(scan, "Enter your current password: ");
+
+                    if(!DatabaseController.authenticate(loggedInUsername, oldPassword)) //old password must be correct before anything else
+                    {
+                        AuditLogger.log("PASSWORD_CHANGE_DENIED", loggedInUsername);
+                        DatabaseController.recordFailedLogin(loggedInUsername); //counts toward the same failed attempts as logging in (CWE-307)
+
+                        if(DatabaseController.getFailedAttempts(loggedInUsername) >= 3) //too many wrong passwords, lock the account for 15 minutes and end the session
+                        {
+                            DatabaseController.lockUser(loggedInUsername, 15);
+                            AuditLogger.log("ACCOUNT_LOCKED", loggedInUsername);
+                            System.out.println("\nToo many failed attempts. Your account has been locked, try again later.");
+                            forceLogout = true;
+                        }
+                        else
+                        {
+                            System.out.println("\nIncorrect password. Password change cancelled.\n");
+                        }
+                        break;
+                    }
+
+                    DatabaseController.resetFailedLogins(loggedInUsername); //correct password, clear any previous failed attempts
+
+                    String newPassword = UserInterface.readPassword(scan, "Enter your new password: ");
+
+                    //new password has to meet the same rules as at signup
+                    if(!PasswordValidator.isValid(newPassword, loggedInUsername))
+                    {
+                        UserInterface.printPasswordRules();
+                        AuditLogger.log("PASSWORD_CHANGE_FAILURE", loggedInUsername);
+                        System.out.println("New password does not meet the requirements. Password not changed.\n");
+                        break;
+                    }
+
+                    if(newPassword.equals(oldPassword)) //must actually be a new password
+                    {
+                        AuditLogger.log("PASSWORD_CHANGE_FAILURE", loggedInUsername);
+                        System.out.println("\nNew password must be different from your current password. Password not changed.\n");
+                        break;
+                    }
+
+                    String confirmPassword = UserInterface.readPassword(scan, "Enter your new password again to confirm: ");
+
+                    if(!newPassword.equals(confirmPassword))
+                    {
+                        AuditLogger.log("PASSWORD_CHANGE_FAILURE", loggedInUsername);
+                        System.out.println("\nPasswords did not match. Password not changed.\n");
+                        break;
+                    }
+
+                    actionRes = DatabaseController.changePassword(loggedInUsername, oldPassword, newPassword);
+
+                    if(actionRes)
+                    {
+                        AuditLogger.log("PASSWORD_CHANGE_SUCCESS", loggedInUsername);
+                        System.out.println("\nPassword changed successfully.\n");
+                    }
+                    else
+                    {
+                        AuditLogger.log("PASSWORD_CHANGE_FAILURE", loggedInUsername);
+                        System.out.println("\nPassword could not be changed, try again later.\n");
+                    }
+                 break;
+
                 default:
                     System.out.println("\nNot an option, try entering \"1\", \"2\", or \"3\"\n");
                     AuditLogger.log("INVALID_MENU_CHOICE", loggedInUsername); //log a selecion of an invalid menu option
                 break;
             }
+
+            if(forceLogout) //user was locked out, end the session
+                break;
 
             lastActivity = System.currentTimeMillis(); //get the current time in milliseconds
 
