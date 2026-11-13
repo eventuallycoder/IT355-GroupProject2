@@ -589,8 +589,7 @@ public class DatabaseController {
             return false;
         }
     }
-
-}
+    
     // ------------------------------------------------------------------
     // Account statements (menu options 5 and 6)
     // CWE-276, CWE-367, CWE-772, CWE-459, CWE-328, CWE-204
