@@ -1,11 +1,14 @@
 import java.util.Scanner;
 
+//CWE 89 & CWE 79 are not included as this is a console application and does not have a web interface, so SQL injection and XSS are not applicable.
 public class Main {
 
     public static Scanner scan = new Scanner(System.in);
     public static void main(String[] args) {
 
         DatabaseController.requirePepper();
+
+        AuditLogger.secureLogFile(); //CWE-276: make audit.log owner-only before anything is logged
         
         DatabaseController.createTables();  
 
@@ -17,6 +20,11 @@ public class Main {
         while(loggedInUsername.equals("") && attempts < 3) //Restricts the number of login attempts to prevent a brute force attack to gain unauthorized access (CWE-307)
         {
             loggedInUsername = UserLogin.login(scan);
+
+            // CWE-229: Guard against unexpected null return from login handler
+            if (loggedInUsername == null) {
+                loggedInUsername = "";
+            }
 
             if(loggedInUsername.equals("")) //user failed to login/signup
             {
@@ -47,7 +55,14 @@ public class Main {
 
         UserInterface.menu();
 
-        userChoice = scan.nextLine();
+        // CWE-229: Guard against EOF on input stream and normalize surrounding whitespace
+        if (!scan.hasNextLine()) {
+            AuditLogger.log("LOGOUT", loggedInUsername);
+            Session.end();
+            scan.close();
+            return;
+        }
+        userChoice = scan.nextLine().trim();
         
         while(!userChoice.equals("4"))
         {
@@ -75,11 +90,14 @@ public class Main {
 
                 case "2":
                     System.out.print("Enter the amount to deposit (in dollars): ");
-                    amount = scan.nextLine();
+                    // CWE-229: Guard against EOF and strip whitespace from currency input
+                    if (!scan.hasNextLine()) break;
+                    amount = scan.nextLine().trim();
 
                     cents = DatabaseController.dollarsToCents(amount);
 
-                    if(cents == -1)
+                    // CWE-229: Reject both invalid sentinel (-1) and zero-value (0) deposits
+                    if(cents <= 0)
                     {
                         System.out.println("\nInvalid amount. Enter something like 25 or 25.50\n");
                         AuditLogger.log("DEPOSIT_FAILURE", loggedInUsername); //log fail to deposit
@@ -101,11 +119,14 @@ public class Main {
 
                 case "3":
                     System.out.print("Enter the amount to withdraw (in dollars): ");
-                    amount = scan.nextLine();
+                    // CWE-229: Guard against EOF and strip whitespace from currency input
+                    if (!scan.hasNextLine()) break;
+                    amount = scan.nextLine().trim();
                      
                     cents = DatabaseController.dollarsToCents(amount);
 
-                    if(cents == -1)
+                    // CWE-229: Reject both invalid sentinel (-1) and zero-value (0) withdrawals
+                    if(cents <= 0)
                     {
                         System.out.println("\nInvalid amount. Enter something like 25 or 25.50\n");
                         AuditLogger.log("WITHDRAWAL_FAILURE", loggedInUsername); //log fail to withdrawal b/c of invalid amount
@@ -114,15 +135,23 @@ public class Main {
 
                     System.out.print("Withdraw " + DatabaseController.formatCents(cents) + " (y/n): "); //confirm the user wants to withdraw money, start of CWE-841 (the rest below: reauth and then finally withdraw)
 
-                    if(!scan.nextLine().equalsIgnoreCase("y")) 
+                    // CWE-229: Guard against EOF and trim confirmation response
+                    if(!scan.hasNextLine() || !scan.nextLine().trim().equalsIgnoreCase("y")) 
                     {
                         AuditLogger.log("WITHDRAWAL_CANCELLED", loggedInUsername, DatabaseController.formatCents(cents));
                         System.out.println("\nWithdrawal cancelled\n");
                         break;
                     }
 
+                    String reauthPassword = UserInterface.readPassword(scan, "Reenter password to confirm withdraw: ");
+                    // CWE-229: Reject null or empty password before calling authenticate
+                    if (reauthPassword == null || reauthPassword.isEmpty()) {
+                        AuditLogger.log("REAUTH_FAILURE", loggedInUsername);
+                        System.out.println("Incorrect password. Withdrawal cancelled.\n");
+                        break;
+                    }
 
-                    boolean isAuth = DatabaseController.authenticate(loggedInUsername, UserInterface.readPassword(scan, "Reenter password to confirm withdraw: ")); //user must reenter password before withdrawing money, this covers CWE-306
+                    boolean isAuth = DatabaseController.authenticate(loggedInUsername, reauthPassword); //user must reenter password before withdrawing money, this covers CWE-306
 
                     if(isAuth == false) //incorrect password given for reauthentication
                     {
@@ -144,6 +173,35 @@ public class Main {
                         AuditLogger.log("WITHDRAWAL_FAILURE", loggedInUsername); //log failure to withdraw
                     }
                  break;
+                
+                case "5": //save an account statement (CWE-276, 367, 772, 459, 328)
+                {
+                    String statementId = DatabaseController.saveStatement(loggedInUsername);
+                    if(statementId != null)
+                    {
+                        System.out.println("\nStatement saved. Your statement ID is: " + statementId + "\n");
+                        AuditLogger.log("STATEMENT_SAVED", loggedInUsername, "id=" + statementId);
+                    }
+                    else
+                    {
+                        System.out.println("\nStatement could not be created, try again later.\n");
+                        AuditLogger.log("STATEMENT_FAILED", loggedInUsername);
+                    }
+                }
+                break;
+
+                case "6": //view a saved statement (CWE-204, 328, 367, 772)
+                {
+                    System.out.print("Enter the statement ID: ");
+                    if (!scan.hasNextLine()) break;
+                    String statement = DatabaseController.readStatement(loggedInUsername,
+                            scan.nextLine().trim().toUpperCase(java.util.Locale.ROOT));
+                    if(statement != null)
+                        System.out.println("\n" + statement);
+                    else
+                        UserInterface.printStatementNotAvailable(); //CWE-204: same message for every failure
+                }
+                break;
 
                 case "7": //change password
                     //ask for the old password first (input is hidden, same as at login) (CWE-620)
@@ -223,7 +281,9 @@ public class Main {
             lastActivity = System.currentTimeMillis(); //get the current time in milliseconds
 
             UserInterface.menu();
-            userChoice = scan.nextLine();
+            // CWE-229: Guard against EOF on subsequent menu iterations
+            if (!scan.hasNextLine()) break;
+            userChoice = scan.nextLine().trim();
         }
 
         AuditLogger.log("LOGOUT", loggedInUsername); //log when the user exits the application

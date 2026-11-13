@@ -5,27 +5,39 @@ import java.util.Scanner;
 public class UserLogin {
 
     //this logs in a user or creates a users account
-    public static String login(Scanner scan)
+        public static String login(Scanner scan)
     {
         UserInterface.printLoginMessage();
         
         String username, password;
         String loginChoice;
 
-        loginChoice = scan.nextLine();
+        // CWE-229: Guard against missing input stream lines (EOF) and normalize whitespace
+        if (!scan.hasNextLine()) return "";
+        loginChoice = scan.nextLine().trim();
 
         while(!(loginChoice.equals("0") || loginChoice.equals("1")))
         {
             System.out.print("\nEnter 0 or 1: ");
-            loginChoice = scan.nextLine();
+            // CWE-229: Guard against EOF inside retry loop
+            if (!scan.hasNextLine()) return "";
+            loginChoice = scan.nextLine().trim();
         }
 
         boolean auth = false;
         if(loginChoice.equals("1"))
         {
                 System.out.print("Enter username: ");
-                username = scan.nextLine();
+                // CWE-229: Guard against EOF and strip surrounding whitespace from username
+                if (!scan.hasNextLine()) return "";
+                username = scan.nextLine().trim();
                 password = UserInterface.readPassword(scan, "Enter password: "); //securely read password
+
+                // CWE-229: Reject blank usernames or null/empty passwords before querying lockout or auth state
+                if (username.isEmpty() || password == null || password.isEmpty()) {
+                    System.out.println("Invalid username or password, or the account is temporarily locked.");
+                    return "";
+                }
                   
                 if(DatabaseController.isLocked(username) == true) //checks if the user is locked, if they are don't let them login
                 {
@@ -66,8 +78,16 @@ public class UserLogin {
         else
         {
                 System.out.print("Enter username: ");
-                username = scan.nextLine();
+                // CWE-229: Guard against EOF and strip surrounding whitespace from username
+                if (!scan.hasNextLine()) return "";
+                username = scan.nextLine().trim();
                 password = UserInterface.readPassword(scan, "Enter password: "); //securely read password
+
+                // CWE-229: Reject blank usernames or null passwords before validation and signup
+                if (username.isEmpty() || password == null) {
+                    AuditLogger.log("SIGNUP_FAILURE", "-");
+                    return "";
+                }
 
                 //check if the password is of valid length, if not the user signup will fail
                 if(PasswordValidator.isValid(password, username) == false)
@@ -90,11 +110,5 @@ public class UserLogin {
                     return "";
                 }
         }
-
-        
-         
-        
     }
-
-     
 }

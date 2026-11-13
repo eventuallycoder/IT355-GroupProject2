@@ -16,7 +16,8 @@ public class AuditLogger {
         event = sanitize(event);
         username = sanitize(username);
 
-        if(detail != null)
+        // CWE-229: Treat blank/whitespace-only detail strings the same as null so empty columns are not written
+        if(detail != null && !detail.isBlank())
         {
             detail = sanitize(detail);
 
@@ -41,6 +42,7 @@ public class AuditLogger {
     //cleans up a string, so it won't clog the audit log, this covers CWE-779
     private static String sanitize(String text)
     {
+        //Covers CWE-233: Guard against null or blank input to prevent NullPointerException and empty log entries
         if(text == null || text.isBlank())
         {
             return "-";
@@ -50,11 +52,36 @@ public class AuditLogger {
 
         text = text.replace("|","/"); //makes it so no username can fake the column separator
 
+        // CWE-229: Trim surrounding whitespace after control-character replacement to prevent blank or padded fields
+        text = text.trim();
+        if (text.isEmpty()) {
+            return "-";
+        }
+
         if(text.length() > 30) //cut down the text so its less than 30 characters
         {
             text = text.substring(0,30);
         }
 
         return text;
+    }
+
+    /CWE-276: makes audit.log owner-only; called once from Main at startup (log() itself is unchanged)
+    public static void secureLogFile()
+    {
+        java.nio.file.Path logFile = java.nio.file.Path.of("audit.log");
+        try {
+            java.nio.file.Files.createFile(logFile); //CWE-367: atomic, fails if the file already exists
+        }
+        catch (java.nio.file.FileAlreadyExistsException e) {
+            //already exists: just tighten its permissions below
+        }
+        catch (IOException e) {
+            System.out.println("\nWarning: could not restrict audit log permissions\n");
+            return;
+        }
+
+        if(!DatabaseController.restrictToOwner(logFile))
+            System.out.println("\nWarning: could not restrict audit log permissions\n");
     }
 }

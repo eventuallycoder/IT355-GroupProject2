@@ -1,4 +1,7 @@
-//stores the current user (the one using the application) //This is used for CWE-306 and CWE-841
+import java.util.Locale;
+
+//stores the current user (the one using the application) 
+//This is used for CWE-306/CWE-841/CWE-178/CWE-229 
 public class Session {
     
     private static String currentUser = null; //set to null when nobody is logged in
@@ -9,10 +12,15 @@ public class Session {
         currentUser = null;
     }
 
-    //sets currentUser to the username
+    //sets currentUser to the normalized canonical username
     public static void start(String username)
     {
-        currentUser = username;
+        // CWE-229: Reject null or blank usernames so an empty session cannot be marked active
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Cannot start session with null or blank username");
+        }
+        // CWE-178 & CWE-229: Normalize whitespace and casing with Locale.ROOT for consistent session/audit records
+        currentUser = username.trim().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -21,27 +29,32 @@ public class Session {
      */
     public static boolean isActive()
     {
-        if(currentUser != null)
+        // CWE-229: Ensure currentUser is neither null nor blank
+        if(currentUser != null && !currentUser.isBlank())
             return true;
 
         return false;
-
     }
 
     /**
      * 
-     * @param username a give username
+     * @param username a given username
      * @return true if currentUser is not null and matches the username
      */
     public static boolean isUser(String username)
     {
-        if(isActive())
-            if(username.equalsIgnoreCase(currentUser))
+        // CWE-229: Guard against null or blank username before comparison to prevent NullPointerException
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
+        // CWE-178: Use Locale.ROOT instead of equalsIgnoreCase to avoid locale-specific case bugs (e.g., Turkish-I)
+        if(isActive()) {
+            String normalizedInput = username.trim().toLowerCase(Locale.ROOT);
+            if(currentUser.equals(normalizedInput))
                 return true;
+        }
     
         return false;
     }
-
-    
-    
 }
