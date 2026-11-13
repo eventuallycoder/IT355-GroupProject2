@@ -66,7 +66,7 @@ public class AuditLogger {
         return text;
     }
 
-    /CWE-276: makes audit.log owner-only; called once from Main at startup (log() itself is unchanged)
+    //CWE-276: makes audit.log owner-only; called once from Main at startup (log() itself is unchanged)
     public static void secureLogFile()
     {
         java.nio.file.Path logFile = java.nio.file.Path.of("audit.log");
