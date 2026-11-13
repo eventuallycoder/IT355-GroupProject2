@@ -1,5 +1,8 @@
 import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.sql.Connection;
@@ -14,17 +17,18 @@ import java.util.Locale;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
+
 public class DatabaseController {
 
     private DatabaseController() {}
 
-    private static final String DB_DIR  = "Database";
-    private static final String DB_FILE = DB_DIR + "/Database.db";
-    private static final String URL     = "jdbc:sqlite:" + DB_FILE;
+    //CWE-22 / CWE-434: the database location is fixed and checked by SafePaths, it is never built from user input
+    private static final String DB_FILE_NAME = "Database.db";
 
     // Upper bound so a balance can never overflow SQLite's 64-bit integer
     private static final long MAX_BALANCE_CENTS = Long.MAX_VALUE / 2;
 
+    //CWE-338: ALL randomness in this app (password salts, account numbers) comes from this cryptographically
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // ------------------------------------------------------------------
@@ -32,13 +36,20 @@ public class DatabaseController {
     // ------------------------------------------------------------------
 
     private static Connection connect() throws SQLException {
-        new File(DB_DIR).mkdirs();
-        Connection conn = DriverManager.getConnection(URL);
+        Path dbPath;
+        try {
+            Files.createDirectories(SafePaths.DB_DIR);
+            dbPath = SafePaths.resolveInside(SafePaths.DB_DIR, DB_FILE_NAME); //CWE-22 / CWE-434
+        } catch (IOException e) {
+            throw new SQLException("Database location is not permitted", e);
+        }
+        Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON");
         }
         return conn;
     }
+
 
     public static void createTables() {
         String users = """
@@ -139,6 +150,7 @@ public class DatabaseController {
     }
 
     private static String generateAccountNumber() {
+        //CWE-338
         StringBuilder sb = new StringBuilder(10);
         for (int i = 0; i < 10; i++) sb.append(RANDOM.nextInt(10));
         return sb.toString();
@@ -175,11 +187,16 @@ public class DatabaseController {
      *         or something went wrong.
      */
      public static boolean deleteUser(String username, String password) {
+        //CWE-425: a direct call must come from the logged in user, being able to supply a password isn't enough
+        if(!sessionAllows(username))
+            return false;
+ 
         if(authenticate(username, password) == false)
         {
             AuditLogger.log("DELETE_USER_DENIED", "-");
             return false;
         }
+
 
         // CWE-178 & CWE-229: Normalize casing and whitespace so database and audit logs stay consistent
         String cleanUser = normalizeUsername(username);
@@ -201,9 +218,10 @@ public class DatabaseController {
                 conn.commit();
                 boolean removed = deleted > 0;
 
-                if(removed)
+                if(removed){
                     AuditLogger.log("USER_DELETED", cleanUser);
-
+                    Session.end();
+                }
                 return removed;
 
             } catch (SQLException e) {
@@ -267,7 +285,7 @@ public class DatabaseController {
 
     private static String hashPassword(String password) {
         byte[] salt = new byte[16];
-        RANDOM.nextBytes(salt);
+        RANDOM.nextBytes(salt); //CWE-338
         byte[] hash = pbkdf2(password, salt);
         return Base64.getEncoder().encodeToString(salt) + ":" + Base64.getEncoder().encodeToString(hash);
     }
